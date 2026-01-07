@@ -118,12 +118,10 @@ class VideoZoomAndContentScaleState(
         val maxX = abs(extraWidth / 2)
         val maxY = abs(extraHeight / 2)
 
-        if (enablePanGesture) {
-            offset = Offset(
-                x = (offset.x + zoom * panChange.x).coerceIn(-maxX, maxX),
-                y = (offset.y + zoom * panChange.y).coerceIn(-maxY, maxY),
-            )
-        }
+        offset = Offset(
+            x = (offset.x + zoom * panChange.x).coerceIn(-maxX, maxX),
+            y = (offset.y + zoom * panChange.y).coerceIn(-maxY, maxY),
+        )
     }
 
     fun onZoomPanGestureEnd() {

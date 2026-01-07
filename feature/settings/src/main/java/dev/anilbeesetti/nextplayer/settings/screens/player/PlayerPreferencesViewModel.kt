@@ -50,6 +50,7 @@ class PlayerPreferencesViewModel @Inject constructor(
             is PlayerPreferencesUiEvent.UpdateDefaultPlaybackSpeed -> updateDefaultPlaybackSpeed(event.value)
             is PlayerPreferencesUiEvent.UpdateControlAutoHideTimeout -> updateControlAutoHideTimeout(event.value)
             PlayerPreferencesUiEvent.ToggleUseMaterialYouControls -> toggleUseMaterialYouControls()
+            PlayerPreferencesUiEvent.ToggleShowThumbnailPreview -> toggleShowThumbnailPreview()
         }
     }
 
@@ -148,6 +149,14 @@ class PlayerPreferencesViewModel @Inject constructor(
             }
         }
     }
+
+    fun toggleShowThumbnailPreview() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(showThumbnailPreview = !it.showThumbnailPreview)
+            }
+        }
+    }
 }
 
 @Stable
@@ -175,4 +184,5 @@ sealed interface PlayerPreferencesUiEvent {
     data class UpdateDefaultPlaybackSpeed(val value: Float) : PlayerPreferencesUiEvent
     data class UpdateControlAutoHideTimeout(val value: Int) : PlayerPreferencesUiEvent
     data object ToggleUseMaterialYouControls : PlayerPreferencesUiEvent
+    data object ToggleShowThumbnailPreview : PlayerPreferencesUiEvent
 }

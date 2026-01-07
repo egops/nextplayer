@@ -62,9 +62,11 @@ import dev.anilbeesetti.nextplayer.feature.player.buttons.ShuffleButton
 import dev.anilbeesetti.nextplayer.feature.player.extensions.drawableRes
 import dev.anilbeesetti.nextplayer.feature.player.extensions.noRippleClickable
 import dev.anilbeesetti.nextplayer.feature.player.state.MediaPresentationState
+import dev.anilbeesetti.nextplayer.feature.player.state.ThumbnailPreviewState
 import dev.anilbeesetti.nextplayer.feature.player.state.durationFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.pendingPositionFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.positionFormatted
+import dev.anilbeesetti.nextplayer.feature.player.ui.FilmstripSeekbar
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -75,6 +77,7 @@ fun ControlsBottomView(
     controlsAlignment: Alignment.Horizontal,
     videoContentScale: VideoContentScale,
     isPipSupported: Boolean,
+    thumbnailPreviewState: ThumbnailPreviewState?,
     onVideoContentScaleClick: () -> Unit,
     onVideoContentScaleLongClick: () -> Unit,
     onLockControlsClick: () -> Unit,
@@ -82,6 +85,7 @@ fun ControlsBottomView(
     onRotateClick: () -> Unit,
     onPlayInBackgroundClick: () -> Unit,
     onSeek: (Long) -> Unit,
+    onSeekStart: () -> Unit,
     onSeekEnd: () -> Unit,
 ) {
     val systemBarsPadding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
@@ -93,56 +97,70 @@ fun ControlsBottomView(
             .padding(bottom = 16.dp.takeIf { systemBarsPadding.calculateBottomPadding() == 0.dp } ?: 0.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            var showPendingPosition by rememberSaveable { mutableStateOf(false) }
-
+        // 使用胶片带时隐藏左下角的时间显示（胶片带上已有时间显示）
+        if (thumbnailPreviewState == null) {
             Row(
+                modifier = Modifier.padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.noRippleClickable {
-                    showPendingPosition = !showPendingPosition
-                },
             ) {
-                Text(
-                    text = when (showPendingPosition) {
-                        true -> "-${mediaPresentationState.pendingPositionFormatted}"
-                        false -> mediaPresentationState.positionFormatted
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White,
-                )
-                Text(
-                    text = " / ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White,
-                )
-                Text(
-                    text = mediaPresentationState.durationFormatted,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White,
-                )
-            }
+                var showPendingPosition by rememberSaveable { mutableStateOf(false) }
 
-            Spacer(modifier = Modifier.weight(1f))
-            PlayerButton(
-                modifier = modifier.size(30.dp),
-                onClick = onRotateClick,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_screen_rotation),
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.noRippleClickable {
+                        showPendingPosition = !showPendingPosition
+                    },
+                ) {
+                    Text(
+                        text = when (showPendingPosition) {
+                            true -> "-${mediaPresentationState.pendingPositionFormatted}"
+                            false -> mediaPresentationState.positionFormatted
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                    )
+                    Text(
+                        text = " / ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                    )
+                    Text(
+                        text = mediaPresentationState.durationFormatted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+                PlayerButton(
+                    modifier = modifier.size(30.dp),
+                    onClick = onRotateClick,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_screen_rotation),
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                    )
+                }
             }
         }
-        PlayerSeekbar(
-            position = mediaPresentationState.position.toFloat(),
-            duration = mediaPresentationState.duration.toFloat(),
-            onSeek = { onSeek(it.toLong()) },
-            onSeekFinished = { onSeekEnd() },
-        )
+        if (thumbnailPreviewState != null) {
+            FilmstripSeekbar(
+                position = mediaPresentationState.position.toFloat(),
+                duration = mediaPresentationState.duration.toFloat(),
+                thumbnailPreviewState = thumbnailPreviewState,
+                onSeek = { onSeek(it.toLong()) },
+                onSeekStart = onSeekStart,
+                onSeekFinished = onSeekEnd,
+            )
+        } else {
+            PlayerSeekbar(
+                position = mediaPresentationState.position.toFloat(),
+                duration = mediaPresentationState.duration.toFloat(),
+                onSeek = { onSeek(it.toLong()) },
+                onSeekFinished = onSeekEnd,
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()

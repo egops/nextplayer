@@ -103,6 +103,8 @@ class PictureInPictureState(
         if (pictureInPictureParamsBuilder == null) return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         if (rect.width() <= 0 || rect.height() <= 0) return
+        // 检查 Activity 是否仍然有效
+        if (activity.isFinishing || activity.isDestroyed) return
 
         val sourceRectHint = Rect(rect)
         val aspectRatio = Rational(sourceRectHint.width(), sourceRectHint.height())
@@ -124,6 +126,7 @@ class PictureInPictureState(
         if (pictureInPictureParamsChanged) {
             applyPictureInPictureParams()
         }
+
     }
 
     fun enterPictureInPictureMode(): Boolean {
@@ -198,6 +201,8 @@ class PictureInPictureState(
     private fun updateAutoEnterEnabled() {
         if (pictureInPictureParamsBuilder == null) return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        // 检查 Activity 是否仍然有效
+        if (activity.isFinishing || activity.isDestroyed) return
 
         val autoEnterEnabled = autoEnter && player.isPlaying
         if (autoEnterEnabled == lastAppliedAutoEnterEnabled) return
@@ -210,6 +215,8 @@ class PictureInPictureState(
     private fun updatePictureInPictureActions() {
         if (pictureInPictureParamsBuilder == null) return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        // 检查 Activity 是否仍然有效
+        if (activity.isFinishing || activity.isDestroyed) return
 
         val isPlaying = player.isPlaying
         if (isPlaying == lastAppliedActionsPlaybackState) return

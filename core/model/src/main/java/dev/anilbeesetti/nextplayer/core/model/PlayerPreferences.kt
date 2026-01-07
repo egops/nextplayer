@@ -58,6 +58,9 @@ data class PlayerPreferences(
 
     // Decoder Preferences
     val decoderPriority: DecoderPriority = DecoderPriority.PREFER_DEVICE,
+
+    // Seekbar Preferences
+    val showThumbnailPreview: Boolean = false,
 ) {
 
     companion object {

@@ -49,6 +49,8 @@
     <string name="resume_description">Select whether to resume played videos from the point where you stopped</string>
     <string name="seek_gesture">Seek gesture</string>
     <string name="seek_gesture_description">Swipe horizontally to seek forwards or backwards</string>
+    <string name="thumbnail_preview">Thumbnail preview</string>
+    <string name="thumbnail_preview_description">Show video thumbnail when seeking on the progress bar</string>
     <string name="select_audio_track">Select audio track</string>
     <string name="select_subtitle_track">Select subtitle track</string>
     <string name="settings">Settings</string>

@@ -30,6 +30,8 @@
     <string name="resume_description">选择是否从您上次停止的地方继续播放视频</string>
     <string name="seek_gesture">跳转手势</string>
     <string name="seek_gesture_description">横向滑动可向前或向后跳转</string>
+    <string name="thumbnail_preview">缩略图预览</string>
+    <string name="thumbnail_preview_description">拖动进度条时显示视频缩略图</string>
     <string name="select_audio_track">选择音轨</string>
     <string name="select_subtitle_track">选择字幕</string>
     <string name="ascending">升序</string>

@@ -40,12 +40,12 @@ import androidx.compose.material.icons.rounded.Headset
 import androidx.compose.material.icons.rounded.HeadsetOff
 import androidx.compose.material.icons.rounded.HideSource
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LocalMovies
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MiscellaneousServices
-import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PanToolAlt
@@ -106,6 +106,7 @@ object NextIcons {
     val FontSize = Icons.Rounded.FormatSize
     val Headset = Icons.Rounded.Headset
     val HeadsetOff = Icons.Rounded.HeadsetOff
+    val Image = Icons.Rounded.Image
     val Info = Icons.Rounded.Info
     val Language = Icons.Rounded.Translate
     val Length = Icons.Rounded.Straighten
@@ -150,6 +151,5 @@ object NextIcons {
     val Copy = Icons.Rounded.ContentCopy
     val ExtraSettings = Icons.Rounded.MiscellaneousServices
     val DeleteSweep = Icons.Rounded.DeleteSweep
-    val Image = Icons.Rounded.Image
     val Frame = Icons.Rounded.FilterFrames
 }
