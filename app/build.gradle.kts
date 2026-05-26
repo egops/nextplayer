@@ -18,7 +18,7 @@ android {
         applicationId = "dev.anilbeesetti.nextplayer.fork"
         versionCode = 56
         versionName = "0.16.3"
-        buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"anilbeesetti\"")
+        buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"egops\"")
         buildConfigField("String", "UPDATE_GITHUB_REPO", "\"nextplayer\"")
     }
 
