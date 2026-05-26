@@ -2,6 +2,7 @@
 # Triggered only by the filmstrip / thumbnail preview feature branch.
 # Release APKs use the release-with-debug-signing variant (minified, debug-signed, installable on device).
 # Production signing: push branch release/v*.*.* (see publish.yaml).
+# Reads versionName/versionCode from app/build.gradle.kts for release assets and update metadata.
 name: Filmstrip Build & Release
 
 on:
