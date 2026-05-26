@@ -105,8 +105,8 @@ internal class GithubReleaseFetcher(
         }
     }
 
-    private fun GithubReleaseDto.toAppUpdateInfo(): AppUpdateInfo? {
-        val apkAsset = selectApkAsset(assets) ?: return null
+    private fun GithubReleaseDto.toAppUpdateInfo(installedPackageName: String): AppUpdateInfo? {
+        val apkAsset = selectApkAsset(assets, installedPackageName) ?: return null
         val versionCode = parseVersionCode(body) ?: parseVersionCodeFromTag(tagName) ?: return null
         val versionName = parseVersionName(body) ?: tagName.removePrefix("v").ifBlank { tagName }
         return AppUpdateInfo(
@@ -119,15 +119,14 @@ internal class GithubReleaseFetcher(
         )
     }
 
-    private fun selectApkAsset(assets: List<GithubAssetDto>): GithubAssetDto? {
+    private fun selectApkAsset(assets: List<GithubAssetDto>, installedPackageName: String): GithubAssetDto? {
         var apkAssets = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
         if (apkAssets.isEmpty()) return null
 
-        if (config.preferReleaseApk) {
-            val releaseApks = apkAssets.filter { it.name.contains(RELEASE_APK_MARKER, ignoreCase = true) }
-            if (releaseApks.isNotEmpty()) {
-                apkAssets = releaseApks
-            }
+        val variantMarker = apkVariantMarkerForInstalledPackage(installedPackageName)
+        val variantApks = apkAssets.filter { it.name.contains(variantMarker, ignoreCase = true) }
+        if (variantApks.isNotEmpty()) {
+            apkAssets = variantApks
         }
 
         val preferredAbi = preferredAbiSuffix()
