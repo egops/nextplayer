@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.anilbeesetti.nextplayer.feature.player.LocalControlsVisibilityState
+import dev.anilbeesetti.nextplayer.feature.player.state.FilmstripTimelineState
 import dev.anilbeesetti.nextplayer.feature.player.state.ThumbnailPreviewState
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -69,6 +70,7 @@ fun FilmstripSeekbar(
     position: Float,
     duration: Float,
     thumbnailPreviewState: ThumbnailPreviewState,
+    filmstripTimelineState: FilmstripTimelineState,
     onSeek: (Float) -> Unit,
     onSeekStart: () -> Unit,
     onSeekFinished: () -> Unit,
@@ -90,23 +92,9 @@ fun FilmstripSeekbar(
     val timeScaleHeight = 24.dp // 时间刻度高度
     val playheadPositionRatio = 0.25f // 播放头位置（距左侧25%）
     
-    // 缩放配置
     val minZoom = 1f
-    // 动态计算最大缩放：确保最大放大时至少能显示约 3 秒
-    val minVisibleDurationAtMaxZoom = 3000f // 最大放大时显示的最小时长（3秒）
-    val maxZoom = (duration / minVisibleDurationAtMaxZoom).coerceIn(1f, 2000f)
-    
-    // 智能初始缩放：长视频（>30秒）自动放大，使屏幕只显示约 30 秒
-    val targetVisibleDuration = 30000f // 目标可见时长：30秒
-    val initialZoom = remember(duration) {
-        if (duration > targetVisibleDuration) {
-            // 计算需要的缩放级别，使可见时长约为 30 秒
-            (duration / targetVisibleDuration).coerceIn(minZoom, maxZoom)
-        } else {
-            1f // 短视频不缩放
-        }
-    }
-    var zoomLevel by remember(duration) { mutableFloatStateOf(initialZoom) }
+    val maxZoom = FilmstripTimelineState.maxZoom(duration)
+    val zoomLevel = filmstripTimelineState.zoomLevel
     
     // 状态
     var isDragging by remember { mutableStateOf(false) }
@@ -173,13 +161,13 @@ fun FilmstripSeekbar(
     val thumbnailHeight = filmstripHeightPx - 8f
     val thumbnailWidth = thumbnailHeight * videoAspectRatio
     
-    // 计算可视时间范围（基于缩放级别）
     val visibleDuration = if (zoomLevel > 0) duration / zoomLevel else duration
-    
-    // 计算胶片带偏移量（播放头位置对应当前时间）
-    val timeToPixelRatio = if (visibleDuration > 0 && canvasSize.width > 0) {
-        canvasSize.width.toFloat() / visibleDuration
-    } else 1f
+    val timeToPixelRatio = filmstripTimelineState.timeToPixelRatio(duration).takeIf { it > 0f }
+        ?: if (visibleDuration > 0 && canvasSize.width > 0) {
+            canvasSize.width.toFloat() / visibleDuration
+        } else {
+            1f
+        }
     
     // 计算当前视口的时间范围（用于按需加载缩略图）
     val viewportStartTime = (currentSeekPosition - playheadPositionRatio * visibleDuration).coerceAtLeast(0f)
@@ -293,7 +281,10 @@ fun FilmstripSeekbar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(timelineHeight)
-                    .onSizeChanged { canvasSize = it }
+                    .onSizeChanged {
+                        canvasSize = it
+                        filmstripTimelineState.viewportWidthPx = it.width.toFloat()
+                    }
                     .pointerInteropFilter { event ->
                         when (event.actionMasked) {
                             MotionEvent.ACTION_DOWN -> {
@@ -328,7 +319,7 @@ fun FilmstripSeekbar(
                                         if (lastDistance > 0f) {
                                             val scale = newDistance / lastDistance
                                             val newZoom = (zoomLevel * scale).coerceIn(minZoom, maxZoom)
-                                            zoomLevel = newZoom
+                                            filmstripTimelineState.setZoomLevel(newZoom, duration)
                                         }
                                         lastDistance = newDistance
                                     }

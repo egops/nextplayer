@@ -64,6 +64,7 @@ import dev.anilbeesetti.nextplayer.feature.player.state.ControlsVisibilityState
 import dev.anilbeesetti.nextplayer.feature.player.state.VerticalGesture
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberBrightnessState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberControlsVisibilityState
+import dev.anilbeesetti.nextplayer.feature.player.state.rememberFilmstripTimelineState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberErrorState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberMediaPresentationState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberMetadataState
@@ -118,10 +119,16 @@ fun MediaPlayerScreen(
         useLongPressGesture = playerPreferences.useLongPressControls,
         longPressSpeed = playerPreferences.longPressControlsSpeed,
     )
+    val filmstripTimelineState = rememberFilmstripTimelineState(
+        durationMs = mediaPresentationState.duration,
+        enabled = playerPreferences.showThumbnailPreview,
+    )
     val seekGestureState = rememberSeekGestureState(
         player = player,
         sensitivity = playerPreferences.seekSensitivity,
         enableSeekGesture = playerPreferences.useSeekControls,
+        useFilmstripSeekMapping = playerPreferences.showThumbnailPreview,
+        filmstripTimelineState = filmstripTimelineState.takeIf { playerPreferences.showThumbnailPreview },
     )
     val pictureInPictureState = rememberPictureInPictureState(
         player = player,
@@ -201,6 +208,8 @@ fun MediaPlayerScreen(
                         textBold = playerPreferences.subtitleTextBold,
                         applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,
                     ),
+                    useFilmstripSeekMapping = playerPreferences.showThumbnailPreview,
+                    filmstripTimelineState = filmstripTimelineState.takeIf { playerPreferences.showThumbnailPreview },
                 )
 
                 AnimatedVisibility(
@@ -324,6 +333,7 @@ fun MediaPlayerScreen(
                                     videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                                     isPipSupported = pictureInPictureState.isPipSupported,
                                     thumbnailPreviewState = if (playerPreferences.showThumbnailPreview) thumbnailPreviewState else null,
+                                    filmstripTimelineState = filmstripTimelineState.takeIf { playerPreferences.showThumbnailPreview },
                                     onSeek = seekGestureState::onSeek,
                                     onSeekStart = {
                                         isFilmstripSeeking = true

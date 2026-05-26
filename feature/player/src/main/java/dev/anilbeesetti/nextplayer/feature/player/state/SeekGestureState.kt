@@ -27,12 +27,16 @@ fun rememberSeekGestureState(
     player: Player,
     sensitivity: Float = 0.5f,
     enableSeekGesture: Boolean,
+    useFilmstripSeekMapping: Boolean = false,
+    filmstripTimelineState: FilmstripTimelineState? = null,
 ): SeekGestureState {
-    val seekGestureState = remember {
+    val seekGestureState = remember(useFilmstripSeekMapping, filmstripTimelineState) {
         SeekGestureState(
             player = player,
             sensitivity = sensitivity,
             enableSeekGesture = enableSeekGesture,
+            useFilmstripSeekMapping = useFilmstripSeekMapping,
+            filmstripTimelineState = filmstripTimelineState,
         )
     }
     
@@ -51,6 +55,8 @@ class SeekGestureState(
     private val player: Player,
     private val enableSeekGesture: Boolean = true,
     private val sensitivity: Float = 0.5f,
+    private val useFilmstripSeekMapping: Boolean = false,
+    private val filmstripTimelineState: FilmstripTimelineState? = null,
 ) {
     var isSeeking: Boolean by mutableStateOf(false)
         private set
@@ -62,6 +68,8 @@ class SeekGestureState(
         private set
 
     private var seekStartX = 0f
+    /** Scratch position (ms) while scrubbing with filmstrip mapping. */
+    private var scrubPositionMs: Float? = null
     
     // Warm-up decode 相关（解决暂停态大范围 seek 后卡顿问题）
     private var lastWarmUpPosition: Long = -1L
@@ -135,6 +143,9 @@ class SeekGestureState(
 
         onSeekStart()
         seekStartX = offset.x
+        if (useFilmstripSeekMapping) {
+            scrubPositionMs = player.currentPosition.toFloat().coerceAtLeast(0f)
+        }
     }
 
     @OptIn(UnstableApi::class)
@@ -142,20 +153,30 @@ class SeekGestureState(
         if (seekStartPosition == null) return
         if (player.duration == C.TIME_UNSET) return
         if (!player.isCurrentMediaItemSeekable) return
-        if (player.currentPosition <= 0L && dragAmount < 0) return
-        if (player.currentPosition >= player.duration && dragAmount > 0) return
         if (change.isConsumed) return
 
-        val newPosition = seekStartPosition!! + ((change.position.x - seekStartX) * (sensitivity * 100)).toInt()
-        seekAmount = (newPosition - seekStartPosition!!).coerceIn(
+        val durationMs = player.duration.toFloat()
+        val newPosition = if (useFilmstripSeekMapping && filmstripTimelineState != null) {
+            val current = scrubPositionMs ?: player.currentPosition.toFloat()
+            val timeDelta = filmstripTimelineState.deltaXToTimeDeltaMs(dragAmount, durationMs)
+            (current + timeDelta).coerceIn(0f, durationMs).also { scrubPositionMs = it }
+        } else {
+            if (player.currentPosition <= 0L && dragAmount < 0) return
+            if (player.currentPosition >= player.duration && dragAmount > 0) return
+            (seekStartPosition!! + ((change.position.x - seekStartX) * (sensitivity * 100)).toInt())
+                .toFloat()
+                .coerceIn(0f, durationMs)
+        }
+
+        val newPositionLong = newPosition.toLong()
+        seekAmount = (newPositionLong - seekStartPosition!!).coerceIn(
             minimumValue = 0 - seekStartPosition!!,
             maximumValue = player.duration - seekStartPosition!!,
         )
-        
-        // 检测是否需要 warm-up decode
-        maybeWarmUpDecode(newPosition)
 
-        player.seekTo(newPosition.coerceIn(0L, player.duration))
+        maybeWarmUpDecode(newPositionLong)
+
+        player.seekTo(newPositionLong)
     }
 
     fun onDragEnd() {
@@ -169,6 +190,7 @@ class SeekGestureState(
         seekStartPosition = null
         seekAmount = null
         seekStartX = 0f
+        scrubPositionMs = null
         lastWarmUpPosition = -1L
     }
     

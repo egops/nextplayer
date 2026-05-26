@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomHorizontalDragGestures
@@ -12,7 +13,9 @@ import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomTransfo
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomVerticalDragGestures
 import dev.anilbeesetti.nextplayer.feature.player.state.ControlsVisibilityState
 import dev.anilbeesetti.nextplayer.feature.player.state.PictureInPictureState
+import dev.anilbeesetti.nextplayer.feature.player.state.FilmstripTimelineState
 import dev.anilbeesetti.nextplayer.feature.player.state.SeekGestureState
+import androidx.compose.ui.platform.LocalDensity
 import dev.anilbeesetti.nextplayer.feature.player.state.TapGestureState
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomAndContentScaleState
 import dev.anilbeesetti.nextplayer.feature.player.state.VolumeAndBrightnessGestureState
@@ -26,8 +29,17 @@ fun PlayerGestures(
     seekGestureState: SeekGestureState,
     videoZoomAndContentScaleState: VideoZoomAndContentScaleState,
     volumeAndBrightnessGestureState: VolumeAndBrightnessGestureState,
+    useFilmstripSeekMapping: Boolean = false,
+    filmstripTimelineState: FilmstripTimelineState? = null,
 ) {
     BoxWithConstraints {
+        val density = LocalDensity.current
+        val viewportWidthPx = with(density) { maxWidth.toPx() }
+        SideEffect {
+            if (useFilmstripSeekMapping && filmstripTimelineState != null && viewportWidthPx > 0f) {
+                filmstripTimelineState.viewportWidthPx = viewportWidthPx
+            }
+        }
         Box(
             modifier = modifier
                 .fillMaxSize()

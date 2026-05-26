@@ -62,6 +62,7 @@ import dev.anilbeesetti.nextplayer.feature.player.buttons.ShuffleButton
 import dev.anilbeesetti.nextplayer.feature.player.extensions.drawableRes
 import dev.anilbeesetti.nextplayer.feature.player.extensions.noRippleClickable
 import dev.anilbeesetti.nextplayer.feature.player.state.MediaPresentationState
+import dev.anilbeesetti.nextplayer.feature.player.state.FilmstripTimelineState
 import dev.anilbeesetti.nextplayer.feature.player.state.ThumbnailPreviewState
 import dev.anilbeesetti.nextplayer.feature.player.state.durationFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.pendingPositionFormatted
@@ -78,6 +79,7 @@ fun ControlsBottomView(
     videoContentScale: VideoContentScale,
     isPipSupported: Boolean,
     thumbnailPreviewState: ThumbnailPreviewState?,
+    filmstripTimelineState: FilmstripTimelineState?,
     onVideoContentScaleClick: () -> Unit,
     onVideoContentScaleLongClick: () -> Unit,
     onLockControlsClick: () -> Unit,
@@ -144,11 +146,12 @@ fun ControlsBottomView(
                 }
             }
         }
-        if (thumbnailPreviewState != null) {
+        if (thumbnailPreviewState != null && filmstripTimelineState != null) {
             FilmstripSeekbar(
                 position = mediaPresentationState.position.toFloat(),
                 duration = mediaPresentationState.duration.toFloat(),
                 thumbnailPreviewState = thumbnailPreviewState,
+                filmstripTimelineState = filmstripTimelineState,
                 onSeek = { onSeek(it.toLong()) },
                 onSeekStart = onSeekStart,
                 onSeekFinished = onSeekEnd,
