@@ -15,9 +15,11 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        applicationId = "dev.anilbeesetti.nextplayer"
+        applicationId = "dev.anilbeesetti.nextplayer.fork"
         versionCode = 56
         versionName = "0.16.3"
+        buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"anilbeesetti\"")
+        buildConfigField("String", "UPDATE_GITHUB_REPO", "\"nextplayer\"")
     }
 
     buildFeatures {

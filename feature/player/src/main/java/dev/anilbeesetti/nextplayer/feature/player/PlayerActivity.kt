@@ -264,8 +264,8 @@ class PlayerActivity : ComponentActivity() {
             super.onPlaybackStateChanged(playbackState)
             when (playbackState) {
                 Player.STATE_ENDED -> {
-                    isPlaybackFinished = mediaController?.playbackState == Player.STATE_ENDED
-                    finishAndStopPlayerSession()
+                    isPlaybackFinished = true
+                    holdOnLastFrame()
                 }
 
                 else -> {}
@@ -278,7 +278,7 @@ class PlayerActivity : ComponentActivity() {
             if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
                 if (mediaController?.repeatMode != Player.REPEAT_MODE_OFF) return
                 isPlaybackFinished = true
-                finishAndStopPlayerSession()
+                holdOnLastFrame()
             }
         }
     }
@@ -317,6 +317,18 @@ class PlayerActivity : ComponentActivity() {
     private fun finishAndStopPlayerSession() {
         finish()
         mediaController?.stopPlayerSession()
+    }
+
+    /** Keep the last decoded frame visible instead of closing the player. */
+    private fun holdOnLastFrame() {
+        mediaController?.run {
+            val endPosition = duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: currentPosition
+            if (endPosition != C.TIME_UNSET) {
+                seekTo(endPosition.coerceAtLeast(0L))
+            }
+            playWhenReady = false
+            pause()
+        }
     }
 
     override fun onWindowAttributesChanged(params: WindowManager.LayoutParams?) {

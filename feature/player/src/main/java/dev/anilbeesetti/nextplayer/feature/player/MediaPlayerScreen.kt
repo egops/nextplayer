@@ -71,6 +71,7 @@ import dev.anilbeesetti.nextplayer.feature.player.state.rememberPictureInPicture
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberRotationState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberSeekGestureState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTapGestureState
+import dev.anilbeesetti.nextplayer.feature.player.state.rememberThumbnailPreviewState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVideoZoomAndContentScaleState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVolumeAndBrightnessGestureState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVolumeState
@@ -147,6 +148,9 @@ fun MediaPlayerScreen(
         screenOrientation = playerPreferences.playerScreenOrientation,
     )
     val errorState = rememberErrorState(player = player)
+    val thumbnailPreviewState = rememberThumbnailPreviewState(player = player)
+
+    var isFilmstripSeeking by remember { mutableStateOf(false) }
 
     LaunchedEffect(pictureInPictureState.isInPictureInPictureMode) {
         if (pictureInPictureState.isInPictureInPictureMode) {
@@ -211,7 +215,7 @@ fun MediaPlayerScreen(
                     )
                 }
 
-                if (mediaPresentationState.isBuffering) {
+                if (mediaPresentationState.isBuffering && !isFilmstripSeeking) {
                     CircularProgressIndicator(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -293,9 +297,12 @@ fun MediaPlayerScreen(
                         },
                         middleView = {
                             when {
-                                seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
+                                // 使用胶片带时，不显示中间的 seek 偏移信息（胶片带上已有时间显示）
+                                seekGestureState.seekAmount != null && !playerPreferences.showThumbnailPreview -> 
+                                    InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
                                 videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
                                 videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
+                                isFilmstripSeeking -> Unit
                                 controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
                                 else -> Unit
                             }
@@ -316,8 +323,16 @@ fun MediaPlayerScreen(
                                     },
                                     videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                                     isPipSupported = pictureInPictureState.isPipSupported,
+                                    thumbnailPreviewState = if (playerPreferences.showThumbnailPreview) thumbnailPreviewState else null,
                                     onSeek = seekGestureState::onSeek,
-                                    onSeekEnd = seekGestureState::onSeekEnd,
+                                    onSeekStart = {
+                                        isFilmstripSeeking = true
+                                        seekGestureState.onSeekStart()
+                                    },
+                                    onSeekEnd = {
+                                        isFilmstripSeeking = false
+                                        seekGestureState.onSeekEnd()
+                                    },
                                     onRotateClick = rotationState::rotate,
                                     onPlayInBackgroundClick = onPlayInBackgroundClick,
                                     onLockControlsClick = {

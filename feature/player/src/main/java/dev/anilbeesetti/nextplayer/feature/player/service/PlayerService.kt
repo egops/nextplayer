@@ -76,7 +76,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 
@@ -97,8 +99,15 @@ class PlayerService : MediaSessionService() {
     @Inject
     lateinit var imageLoader: ImageLoader
 
+    @Volatile
+    private var cachedPlayerPreferences: PlayerPreferences? = null
+
     private val playerPreferences: PlayerPreferences
-        get() = preferencesRepository.playerPreferences.value
+        get() = cachedPlayerPreferences ?: runBlocking { 
+            preferencesRepository.playerPreferences.first().also { 
+                cachedPlayerPreferences = it 
+            }
+        }
 
     private val customCommands = CustomCommands.asSessionCommands()
 
@@ -523,6 +532,17 @@ class PlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // 预加载 playerPreferences 到缓存，避免后续阻塞
+        cachedPlayerPreferences = runBlocking { preferencesRepository.playerPreferences.first() }
+        
+        // 监听 preferences 变化，更新缓存
+        serviceScope.launch {
+            preferencesRepository.playerPreferences.collect { prefs ->
+                cachedPlayerPreferences = prefs
+            }
+        }
+        
         val renderersFactory = NextRenderersFactory(applicationContext)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(

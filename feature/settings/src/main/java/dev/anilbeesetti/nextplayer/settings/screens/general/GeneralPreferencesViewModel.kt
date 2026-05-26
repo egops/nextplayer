@@ -8,6 +8,7 @@ import dev.anilbeesetti.nextplayer.core.media.sync.MediaInfoSynchronizer
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -16,14 +17,35 @@ class GeneralPreferencesViewModel @Inject constructor(
     private val mediaInfoSynchronizer: MediaInfoSynchronizer,
 ) : ViewModel() {
 
-    private val uiStateInternal = MutableStateFlow(GeneralPreferencesUiState())
+    private val uiStateInternal = MutableStateFlow(
+        GeneralPreferencesUiState(
+            preferences = preferencesRepository.applicationPreferences.value,
+        ),
+    )
     val uiState = uiStateInternal.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            preferencesRepository.applicationPreferences.collect { preferences ->
+                uiStateInternal.update { it.copy(preferences = preferences) }
+            }
+        }
+    }
 
     fun onEvent(event: GeneralPreferencesUiEvent) {
         when (event) {
             is GeneralPreferencesUiEvent.ShowDialog -> showDialog(event.value)
             GeneralPreferencesUiEvent.ClearThumbnailCache -> clearThumbnailCache()
             GeneralPreferencesUiEvent.ResetSettings -> resetSettings()
+            GeneralPreferencesUiEvent.ToggleAutoUpdateCheck -> toggleAutoUpdateCheck()
+        }
+    }
+
+    private fun toggleAutoUpdateCheck() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(enableAutoUpdateCheck = !it.enableAutoUpdateCheck)
+            }
         }
     }
 
@@ -45,6 +67,7 @@ class GeneralPreferencesViewModel @Inject constructor(
 }
 
 data class GeneralPreferencesUiState(
+    val preferences: dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences = dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences(),
     val showDialog: GeneralPreferencesDialog? = null,
 )
 
@@ -57,4 +80,5 @@ sealed interface GeneralPreferencesUiEvent {
     data class ShowDialog(val value: GeneralPreferencesDialog?) : GeneralPreferencesUiEvent
     data object ClearThumbnailCache : GeneralPreferencesUiEvent
     data object ResetSettings : GeneralPreferencesUiEvent
+    data object ToggleAutoUpdateCheck : GeneralPreferencesUiEvent
 }

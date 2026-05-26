@@ -30,6 +30,8 @@
     <string name="resume_description">选择是否从您上次停止的地方继续播放视频</string>
     <string name="seek_gesture">跳转手势</string>
     <string name="seek_gesture_description">横向滑动可向前或向后跳转</string>
+    <string name="thumbnail_preview">缩略图预览</string>
+    <string name="thumbnail_preview_description">拖动进度条时显示视频缩略图</string>
     <string name="select_audio_track">选择音轨</string>
     <string name="select_subtitle_track">选择字幕</string>
     <string name="ascending">升序</string>
@@ -298,4 +300,17 @@
     <string name="reset_volume_gesture_sensitivity">重置音量手势灵敏度</string>
     <string name="brightness_gesture_sensitivity">亮度手势灵敏度</string>
     <string name="reset_brightness_gesture_sensitivity">重置亮度手势灵敏度</string>
+    <string name="updates">更新</string>
+    <string name="auto_update_check">自动检查更新</string>
+    <string name="auto_update_check_description">应用启动时从 GitHub 检查新版本</string>
+    <string name="check_for_updates">检查更新</string>
+    <string name="check_for_updates_description">手动从 GitHub 检查是否有新版本</string>
+    <string name="checking_for_updates">正在检查更新…</string>
+    <string name="update_available">发现新版本</string>
+    <string name="update_available_message">新版本 %1$s 可用，是否立即下载并安装？</string>
+    <string name="app_up_to_date">当前已是最新版本</string>
+    <string name="update_check_failed">检查更新失败</string>
+    <string name="downloading_update">正在下载更新…</string>
+    <string name="download_and_install">下载并安装</string>
+    <string name="update_found_on_startup">发现新版本（%1$s）可用。</string>
 </resources>

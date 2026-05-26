@@ -29,6 +29,7 @@ import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
 import dev.anilbeesetti.nextplayer.core.ui.components.NextDialog
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
+import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 
 @Composable
@@ -75,6 +76,20 @@ private fun GeneralPreferencesContent(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
         ) {
+            ListSectionTitle(text = stringResource(id = R.string.updates))
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                PreferenceSwitch(
+                    title = stringResource(R.string.auto_update_check),
+                    description = stringResource(R.string.auto_update_check_description),
+                    icon = NextIcons.Update,
+                    isChecked = uiState.preferences.enableAutoUpdateCheck,
+                    onClick = { onEvent(GeneralPreferencesUiEvent.ToggleAutoUpdateCheck) },
+                    isFirstItem = true,
+                    isLastItem = true,
+                )
+            }
             ListSectionTitle(text = stringResource(id = R.string.user_data))
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),

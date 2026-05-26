@@ -12,13 +12,22 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import dev.anilbeesetti.nextplayer.core.common.updater.AppUpdateCheckResult
+import dev.anilbeesetti.nextplayer.core.common.updater.AppUpdateInfo
+import dev.anilbeesetti.nextplayer.core.common.updater.AppUpdateManager
+import dev.anilbeesetti.nextplayer.core.ui.R as CoreUiR
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -51,6 +60,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var mediaService: MediaService
 
+    @Inject
+    lateinit var appUpdateManager: AppUpdateManager
+
     private val viewModel: MainViewModel by viewModels()
 
     @OptIn(ExperimentalPermissionsApi::class)
@@ -77,6 +89,49 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val shouldUseDarkTheme = shouldUseDarkTheme(uiState = uiState)
+            var startupUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
+            var autoUpdateChecked by remember { mutableStateOf(false) }
+
+            LaunchedEffect(uiState) {
+                val state = uiState
+                if (!autoUpdateChecked && state is MainActivityUiState.Success && state.preferences.enableAutoUpdateCheck) {
+                    autoUpdateChecked = true
+                    when (val result = appUpdateManager.checkForUpdateNow()) {
+                        is AppUpdateCheckResult.UpdateAvailable -> startupUpdate = result.info
+                        else -> Unit
+                    }
+                }
+            }
+
+            startupUpdate?.let { update ->
+                AlertDialog(
+                    onDismissRequest = { startupUpdate = null },
+                    title = { Text(text = stringResource(CoreUiR.string.update_available)) },
+                    text = {
+                        Text(
+                            text = stringResource(
+                                CoreUiR.string.update_found_on_startup,
+                                update.versionName,
+                            ),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                appUpdateManager.downloadAndInstall(update)
+                                startupUpdate = null
+                            },
+                        ) {
+                            Text(text = stringResource(CoreUiR.string.download_and_install))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { startupUpdate = null }) {
+                            Text(text = stringResource(CoreUiR.string.cancel))
+                        }
+                    },
+                )
+            }
 
             LaunchedEffect(shouldUseDarkTheme) {
                 enableEdgeToEdge(

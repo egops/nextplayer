@@ -24,20 +24,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.anilbeesetti.nextplayer.core.common.updater.AppUpdateCheckResult
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,11 +82,20 @@ private const val UPI_ID = "anilbeesetti10@oksbi"
 fun AboutPreferencesScreen(
     onLibrariesClick: () -> Unit,
     onNavigateUp: () -> Unit,
+    viewModel: AboutPreferencesViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val showUpdateDialog by viewModel.showUpdateDialog.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState.checkResult, uiState.isChecking) {
+        if (!uiState.isChecking && uiState.checkResult != null) {
+            viewModel.onCheckResultShown()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -113,6 +129,31 @@ fun AboutPreferencesScreen(
                 },
                 onLibrariesClick = onLibrariesClick,
             )
+            ListSectionTitle(text = stringResource(id = R.string.updates))
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                ClickablePreferenceItem(
+                    title = stringResource(R.string.check_for_updates),
+                    description = when {
+                        uiState.isChecking -> stringResource(R.string.checking_for_updates)
+                        uiState.isDownloading -> stringResource(R.string.downloading_update)
+                        else -> stringResource(R.string.check_for_updates_description)
+                    },
+                    icon = NextIcons.Update,
+                    onClick = { viewModel.checkForUpdates() },
+                    isFirstItem = true,
+                    isLastItem = true,
+                )
+            }
+            if (uiState.isDownloading) {
+                LinearProgressIndicator(
+                    progress = { uiState.downloadProgress ?: 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                )
+            }
             ListSectionTitle(text = stringResource(id = R.string.donate))
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
@@ -154,6 +195,76 @@ fun AboutPreferencesScreen(
                 )
             }
         }
+    }
+
+    if (showUpdateDialog) {
+        AppUpdateResultDialog(
+            result = uiState.checkResult,
+            onDismiss = viewModel::clearUpdateState,
+            onDownload = { update ->
+                viewModel.downloadAndInstall(update)
+                viewModel.dismissUpdateDialog()
+            },
+        )
+    }
+}
+
+@Composable
+private fun AppUpdateResultDialog(
+    result: AppUpdateCheckResult?,
+    onDismiss: () -> Unit,
+    onDownload: (dev.anilbeesetti.nextplayer.core.common.updater.AppUpdateInfo) -> Unit,
+) {
+    when (result) {
+        is AppUpdateCheckResult.UpdateAvailable -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text(text = stringResource(R.string.update_available)) },
+                text = {
+                    Text(
+                        text = stringResource(
+                            R.string.update_available_message,
+                            result.info.versionName,
+                        ),
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { onDownload(result.info) }) {
+                        Text(text = stringResource(R.string.download_and_install))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismiss) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+        AppUpdateCheckResult.UpToDate -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text(text = stringResource(R.string.check_for_updates)) },
+                text = { Text(text = stringResource(R.string.app_up_to_date)) },
+                confirmButton = {
+                    TextButton(onClick = onDismiss) {
+                        Text(text = stringResource(R.string.done))
+                    }
+                },
+            )
+        }
+        is AppUpdateCheckResult.Error -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text(text = stringResource(R.string.update_check_failed)) },
+                text = { Text(text = result.message) },
+                confirmButton = {
+                    TextButton(onClick = onDismiss) {
+                        Text(text = stringResource(R.string.done))
+                    }
+                },
+            )
+        }
+        null -> Unit
     }
 }
 

@@ -1,19 +1,22 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.kotlinSerialization)
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.fromTarget(libs.versions.android.jvm.get()))
-    }
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
-tasks.withType<JavaCompile> {
-    sourceCompatibility = libs.versions.android.jvm.get()
-    targetCompatibility = libs.versions.android.jvm.get()
+tasks.withType<KotlinCompile> {
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(libs.versions.android.jvm.get()))
+        }
+    }
 }
 
 dependencies {

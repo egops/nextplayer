@@ -49,6 +49,8 @@
     <string name="resume_description">Select whether to resume played videos from the point where you stopped</string>
     <string name="seek_gesture">Seek gesture</string>
     <string name="seek_gesture_description">Swipe horizontally to seek forwards or backwards</string>
+    <string name="thumbnail_preview">Thumbnail preview</string>
+    <string name="thumbnail_preview_description">Show video thumbnail when seeking on the progress bar</string>
     <string name="select_audio_track">Select audio track</string>
     <string name="select_subtitle_track">Select subtitle track</string>
     <string name="settings">Settings</string>
@@ -301,4 +303,17 @@
     <string name="thumbnail_setting_change_confirmation">Changing this setting will clear the thumbnail cache. Thumbnails will be generated again when media list is opened. Continue?</string>
     <string name="material_you_controls">Material You controls</string>
     <string name="material_you_controls_description">Use material you style controls</string>
+    <string name="updates">Updates</string>
+    <string name="auto_update_check">Automatically check for updates</string>
+    <string name="auto_update_check_description">Check GitHub for new versions when the app starts</string>
+    <string name="check_for_updates">Check for updates</string>
+    <string name="check_for_updates_description">Manually check GitHub for a newer version</string>
+    <string name="checking_for_updates">Checking for updates…</string>
+    <string name="update_available">Update available</string>
+    <string name="update_available_message">Version %1$s is available. Download and install now?</string>
+    <string name="app_up_to_date">You are on the latest version</string>
+    <string name="update_check_failed">Could not check for updates</string>
+    <string name="downloading_update">Downloading update…</string>
+    <string name="download_and_install">Download and install</string>
+    <string name="update_found_on_startup">A new version (%1$s) is available.</string>
 </resources>

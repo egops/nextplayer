@@ -90,12 +90,19 @@ private fun PlayerPreferencesContent(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
                 PreferenceSwitch(
+                    title = stringResource(id = R.string.thumbnail_preview),
+                    description = stringResource(id = R.string.thumbnail_preview_description),
+                    icon = NextIcons.Image,
+                    isChecked = uiState.preferences.showThumbnailPreview,
+                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleShowThumbnailPreview) },
+                    isFirstItem = true
+                )
+                PreferenceSwitch(
                     title = stringResource(id = R.string.material_you_controls),
                     description = stringResource(id = R.string.material_you_controls_description),
                     icon = NextIcons.Appearance,
                     isChecked = uiState.preferences.useMaterialYouControls,
                     onClick = { onEvent(PlayerPreferencesUiEvent.ToggleUseMaterialYouControls) },
-                    isFirstItem = true
                 )
                 PreferenceSlider(
                     title = stringResource(R.string.controller_timeout),
