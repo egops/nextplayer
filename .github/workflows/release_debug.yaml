@@ -1,4 +1,4 @@
-# Builds debug + release APKs and publishes a GitHub pre-release.
+# Builds debug + release APKs and publishes a GitHub pre-release for filmstrip-seekbar-pr.
 # Triggered only by the filmstrip / thumbnail preview feature branch.
 # Release APKs use the release-with-debug-signing variant (minified, debug-signed, installable on device).
 # Production signing: push branch release/v*.*.* (see publish.yaml).
