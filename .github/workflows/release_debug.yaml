@@ -1,7 +1,8 @@
-# Builds a debug APK and publishes/updates a GitHub pre-release.
+# Builds debug + release APKs and publishes a GitHub pre-release.
 # Triggered only by the filmstrip / thumbnail preview feature branch.
-# Signed store releases: push branch release/v*.*.* (see publish.yaml).
-name: Debug Release
+# Release APKs use the release-with-debug-signing variant (minified, debug-signed, installable on device).
+# Production signing: push branch release/v*.*.* (see publish.yaml).
+name: Filmstrip Build & Release
 
 on:
   push:
@@ -16,7 +17,7 @@ on:
         default: filmstrip-seekbar-pr
 
 concurrency:
-  group: debug-release-filmstrip-${{ github.event.inputs.ref || github.ref }}
+  group: filmstrip-build-${{ github.event.inputs.ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -24,7 +25,7 @@ permissions:
 
 jobs:
   release:
-    name: Build debug APK and publish pre-release
+    name: Build debug & release APKs and publish pre-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -44,8 +45,9 @@ jobs:
           validate-wrappers: true
           gradle-home-cache-cleanup: true
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Build debug and release APKs
+        run: |
+          ./gradlew assembleDebug assembleRelease-with-debug-signing --no-daemon
 
       - name: Read app version
         id: app_version
@@ -59,23 +61,33 @@ jobs:
         id: build_commit
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare release tag and asset names
+      - name: Prepare release assets
         id: release_meta
         run: |
           ref_name="${{ github.event.inputs.ref || github.ref_name }}"
           ref_name="${ref_name#refs/heads/}"
           safe_ref_name="${ref_name//\//-}"
-          release_tag="debug-${safe_ref_name}"
+          release_tag="build-${safe_ref_name}"
           echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
           echo "safe_ref_name=${safe_ref_name}" >> "$GITHUB_OUTPUT"
 
           version_name="${{ steps.app_version.outputs.version_name }}"
           commit_sha="${{ steps.build_commit.outputs.sha }}"
           mkdir -p release-assets
+
+          # Debug (debuggable, package: dev.anilbeesetti.nextplayer.fork.debug)
           cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk \
             "release-assets/nextplayer-v${version_name}-${commit_sha}-debug-${safe_ref_name}-arm64-v8a.apk"
           cp app/build/outputs/apk/debug/app-universal-debug.apk \
             "release-assets/nextplayer-v${version_name}-${commit_sha}-debug-${safe_ref_name}-universal.apk"
+
+          # Release (minified, debug-signed, package: dev.anilbeesetti.nextplayer.fork.release)
+          cp app/build/outputs/apk/release-with-debug-signing/app-arm64-v8a-release-with-debug-signing.apk \
+            "release-assets/nextplayer-v${version_name}-${commit_sha}-release-${safe_ref_name}-arm64-v8a.apk"
+          cp app/build/outputs/apk/release-with-debug-signing/app-universal-release-with-debug-signing.apk \
+            "release-assets/nextplayer-v${version_name}-${commit_sha}-release-${safe_ref_name}-universal.apk"
+
+          ls -lh release-assets/
 
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
@@ -83,27 +95,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.release_meta.outputs.release_tag }}
-          name: Debug ${{ steps.app_version.outputs.version_name }} (filmstrip / ${{ steps.release_meta.outputs.safe_ref_name }})
+          name: Build ${{ steps.app_version.outputs.version_name }} — debug + release (filmstrip)
           prerelease: true
           make_latest: false
           generate_release_notes: false
           body: |
-            Automated **debug** build for real-device testing (filmstrip / thumbnail preview branch).
+            Automated **debug** and **release** APKs for the filmstrip / thumbnail preview branch.
 
             | Field | Value |
             | --- | --- |
             | Version | `${{ steps.app_version.outputs.version_name }}` (${{ steps.app_version.outputs.version_code }}) |
             | Branch | `filmstrip-seekbar-pr` |
-            | Ref | `${{ github.event.inputs.ref || github.ref_name }}` |
             | Commit | [`${{ steps.build_commit.outputs.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.build_commit.outputs.sha }}) |
             | Workflow | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
 
-            **Install**
-            - Most phones: `*-arm64-v8a.apk` (filename includes commit SHA)
-            - Universal APK includes all ABIs (larger download)
+            ## APK types
 
-            **Note:** Package id is `dev.anilbeesetti.nextplayer.fork` (fork build). Debug signing differs from Play Store releases.
+            | Type | Filename contains | Package id | Notes |
+            | --- | --- | --- | --- |
+            | **Debug** | `-debug-` | `dev.anilbeesetti.nextplayer.fork.debug` | Debuggable, faster iteration |
+            | **Release** | `-release-` | `dev.anilbeesetti.nextplayer.fork.release` | Minified/shrunk, signed with debug keystore (installable) |
 
-            For signed production releases, push branch `release/v<version>` (see `publish.yaml`).
+            ## Install
+
+            - Most phones: `*-arm64-v8a.apk`
+            - Universal: larger, all ABIs
+
+            Pick **debug** or **release** per filename; they can be installed side by side (different package ids).
+
+            Store-signed production builds: push `release/v<version>` (see `publish.yaml`, requires signing secrets).
           files: |
             release-assets/*.apk
