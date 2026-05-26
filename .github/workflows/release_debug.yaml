@@ -1,0 +1,105 @@
+# Builds a debug APK and publishes/updates a GitHub pre-release for feature branches.
+# Use release/v*.*.* + publish.yaml for signed store releases.
+name: Debug Release
+
+on:
+  push:
+    branches:
+      - 'cursor/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build (branch, tag, or SHA). Defaults to the selected branch.'
+        required: false
+        type: string
+
+concurrency:
+  group: debug-release-${{ github.event.inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build debug APK and publish pre-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Set Up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          validate-wrappers: true
+          gradle-home-cache-cleanup: true
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Read app version
+        id: app_version
+        run: |
+          version_name=$(grep 'versionName =' app/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          version_code=$(grep 'versionCode =' app/build.gradle.kts | head -1 | awk '{print $3}')
+          echo "version_name=${version_name}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${version_code}" >> "$GITHUB_OUTPUT"
+
+      - name: Record build commit
+        id: build_commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release tag and asset names
+        id: release_meta
+        run: |
+          ref_name="${{ github.event.inputs.ref || github.ref_name }}"
+          ref_name="${ref_name#refs/heads/}"
+          safe_ref_name="${ref_name//\//-}"
+          release_tag="debug-${safe_ref_name}"
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "safe_ref_name=${safe_ref_name}" >> "$GITHUB_OUTPUT"
+
+          version_name="${{ steps.app_version.outputs.version_name }}"
+          mkdir -p release-assets
+          cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk \
+            "release-assets/nextplayer-v${version_name}-debug-${safe_ref_name}-arm64-v8a.apk"
+          cp app/build/outputs/apk/debug/app-universal-debug.apk \
+            "release-assets/nextplayer-v${version_name}-debug-${safe_ref_name}-universal.apk"
+
+      - name: Publish GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.release_meta.outputs.release_tag }}
+          name: Debug ${{ steps.app_version.outputs.version_name }} (${{ steps.release_meta.outputs.safe_ref_name }})
+          prerelease: true
+          make_latest: false
+          generate_release_notes: false
+          body: |
+            Automated **debug** build for real-device testing.
+
+            | Field | Value |
+            | --- | --- |
+            | Version | `${{ steps.app_version.outputs.version_name }}` (${{ steps.app_version.outputs.version_code }}) |
+            | Ref | `${{ github.event.inputs.ref || github.ref_name }}` |
+            | Commit | [`${{ steps.build_commit.outputs.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.build_commit.outputs.sha }}) |
+            | Workflow | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+
+            **Install**
+            - Most phones: `*-arm64-v8a.apk`
+            - Universal APK includes all ABIs (larger download)
+
+            **Note:** Debug builds use a different signing key than Play Store / release APKs. Uninstall conflicting builds before installing.
+
+            For signed production releases, push branch `release/v<version>` (see `publish.yaml`).
+          files: |
+            release-assets/*.apk
