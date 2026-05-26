@@ -157,7 +157,14 @@ fun MediaPlayerScreen(
     val errorState = rememberErrorState(player = player)
     val thumbnailPreviewState = rememberThumbnailPreviewState(player = player)
 
-    var isFilmstripSeeking by remember { mutableStateOf(false) }
+    val isFilmstripTimelineScrubbing =
+        playerPreferences.showThumbnailPreview && seekGestureState.isSeeking
+
+    LaunchedEffect(isFilmstripTimelineScrubbing) {
+        if (isFilmstripTimelineScrubbing) {
+            controlsVisibilityState.showControls()
+        }
+    }
 
     LaunchedEffect(pictureInPictureState.isInPictureInPictureMode) {
         if (pictureInPictureState.isInPictureInPictureMode) {
@@ -213,7 +220,9 @@ fun MediaPlayerScreen(
                 )
 
                 AnimatedVisibility(
-                    visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
+                    visible = controlsVisibilityState.controlsVisible &&
+                        !controlsVisibilityState.controlsLocked &&
+                        !isFilmstripTimelineScrubbing,
                     enter = fadeIn(),
                     exit = fadeOut(),
                 ) {
@@ -224,7 +233,7 @@ fun MediaPlayerScreen(
                     )
                 }
 
-                if (mediaPresentationState.isBuffering && !isFilmstripSeeking) {
+                if (mediaPresentationState.isBuffering && !isFilmstripTimelineScrubbing) {
                     CircularProgressIndicator(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -232,13 +241,15 @@ fun MediaPlayerScreen(
                     )
                 }
 
-                DoubleTapIndicator(tapGestureState = tapGestureState)
+                if (!isFilmstripTimelineScrubbing) {
+                    DoubleTapIndicator(tapGestureState = tapGestureState)
+                }
 
                 AnimatedVisibility(
                     modifier = Modifier
                         .padding(top = 24.dp)
                         .align(Alignment.TopCenter),
-                    visible = tapGestureState.isLongPressGestureInAction,
+                    visible = !isFilmstripTimelineScrubbing && tapGestureState.isLongPressGestureInAction,
                     enter = fadeIn(),
                     exit = fadeOut(),
                 ) {
@@ -257,7 +268,11 @@ fun MediaPlayerScreen(
                     }
                 }
 
-                if (controlsVisibilityState.controlsVisible && controlsVisibilityState.controlsLocked) {
+                if (
+                    controlsVisibilityState.controlsVisible &&
+                    controlsVisibilityState.controlsLocked &&
+                    !isFilmstripTimelineScrubbing
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -278,7 +293,7 @@ fun MediaPlayerScreen(
                     PlayerControlsView(
                         topView = {
                             AnimatedVisibility(
-                                visible = controlsVisibilityState.controlsVisible,
+                                visible = controlsVisibilityState.controlsVisible && !isFilmstripTimelineScrubbing,
                                 enter = fadeIn(),
                                 exit = fadeOut(),
                             ) {
@@ -311,14 +326,15 @@ fun MediaPlayerScreen(
                                     InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
                                 videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
                                 videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
-                                isFilmstripSeeking -> Unit
+                                isFilmstripTimelineScrubbing -> Unit
                                 controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
                                 else -> Unit
                             }
                         },
                         bottomView = {
                             AnimatedVisibility(
-                                visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
+                                visible = (controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked) ||
+                                    isFilmstripTimelineScrubbing,
                                 enter = fadeIn(),
                                 exit = fadeOut(),
                             ) {
@@ -335,14 +351,9 @@ fun MediaPlayerScreen(
                                     thumbnailPreviewState = if (playerPreferences.showThumbnailPreview) thumbnailPreviewState else null,
                                     filmstripTimelineState = filmstripTimelineState.takeIf { playerPreferences.showThumbnailPreview },
                                     onSeek = seekGestureState::onSeek,
-                                    onSeekStart = {
-                                        isFilmstripSeeking = true
-                                        seekGestureState.onSeekStart()
-                                    },
-                                    onSeekEnd = {
-                                        isFilmstripSeeking = false
-                                        seekGestureState.onSeekEnd()
-                                    },
+                                    onSeekStart = seekGestureState::onSeekStart,
+                                    onSeekEnd = seekGestureState::onSeekEnd,
+                                    scrubbingUiOnly = isFilmstripTimelineScrubbing,
                                     onRotateClick = rotationState::rotate,
                                     onPlayInBackgroundClick = onPlayInBackgroundClick,
                                     onLockControlsClick = {
@@ -381,7 +392,8 @@ fun MediaPlayerScreen(
                 ) {
                     AnimatedVisibility(
                         modifier = Modifier.align(Alignment.CenterStart),
-                        visible = volumeAndBrightnessGestureState.activeGesture == VerticalGesture.VOLUME,
+                        visible = !isFilmstripTimelineScrubbing &&
+                            volumeAndBrightnessGestureState.activeGesture == VerticalGesture.VOLUME,
                         enter = fadeIn(),
                         exit = fadeOut(),
                     ) {
@@ -394,7 +406,8 @@ fun MediaPlayerScreen(
 
                     AnimatedVisibility(
                         modifier = Modifier.align(Alignment.CenterEnd),
-                        visible = volumeAndBrightnessGestureState.activeGesture == VerticalGesture.BRIGHTNESS,
+                        visible = !isFilmstripTimelineScrubbing &&
+                            volumeAndBrightnessGestureState.activeGesture == VerticalGesture.BRIGHTNESS,
                         enter = fadeIn(),
                         exit = fadeOut(),
                     ) {

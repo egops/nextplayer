@@ -74,6 +74,8 @@ fun FilmstripSeekbar(
     onSeek: (Float) -> Unit,
     onSeekStart: () -> Unit,
     onSeekFinished: () -> Unit,
+    /** True when scrubbing from video surface (semi-transparent filmstrip, same as internal drag). */
+    overlayScrubActive: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // 如果 duration 无效，不渲染组件
@@ -261,8 +263,8 @@ fun FilmstripSeekbar(
         return thumbnailCache[nearestTime]
     }
     
-    // 拖动时降低透明度，减少对视频画面的遮挡
-    val filmstripAlpha = if (isDragging || isZooming) 0.3f else 1f
+    // 拖动时降低透明度，减少对视频画面的遮挡（含在画面上滑动 seek 时）
+    val filmstripAlpha = if (isDragging || isZooming || overlayScrubActive) 0.3f else 1f
     
     Column(
         modifier = modifier

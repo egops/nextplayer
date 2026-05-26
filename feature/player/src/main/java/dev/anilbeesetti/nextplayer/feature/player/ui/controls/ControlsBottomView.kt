@@ -89,6 +89,8 @@ fun ControlsBottomView(
     onSeek: (Long) -> Unit,
     onSeekStart: () -> Unit,
     onSeekEnd: () -> Unit,
+    /** When true, only the filmstrip timeline is shown (hide bottom control buttons). */
+    scrubbingUiOnly: Boolean = false,
 ) {
     val systemBarsPadding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
     Column(
@@ -155,6 +157,7 @@ fun ControlsBottomView(
                 onSeek = { onSeek(it.toLong()) },
                 onSeekStart = onSeekStart,
                 onSeekFinished = onSeekEnd,
+                overlayScrubActive = scrubbingUiOnly,
             )
         } else {
             PlayerSeekbar(
@@ -164,6 +167,7 @@ fun ControlsBottomView(
                 onSeekFinished = onSeekEnd,
             )
         }
+        if (!scrubbingUiOnly) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -202,6 +206,7 @@ fun ControlsBottomView(
             }
             LoopButton(player = player)
             ShuffleButton(player = player)
+        }
         }
     }
 }
