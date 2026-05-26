@@ -17,5 +17,8 @@ object AppModule {
     fun provideGithubUpdateConfig(): GithubUpdateConfig = GithubUpdateConfig(
         owner = BuildConfig.UPDATE_GITHUB_OWNER,
         repo = BuildConfig.UPDATE_GITHUB_REPO,
+        releaseTag = BuildConfig.UPDATE_RELEASE_TAG,
+        preferReleaseApk = true,
+        buildGitCommit = BuildConfig.GIT_COMMIT,
     )
 }

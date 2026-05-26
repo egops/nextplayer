@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.core.common.updater
 data class AppUpdateInfo(
     val versionName: String,
     val versionCode: Int,
+    val buildCommit: String? = null,
     val releaseNotes: String,
     val downloadUrl: String,
     val assetName: String,

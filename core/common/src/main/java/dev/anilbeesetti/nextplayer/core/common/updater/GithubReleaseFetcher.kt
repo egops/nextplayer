@@ -29,13 +29,20 @@ internal class GithubReleaseFetcher(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
 
-    suspend fun fetchLatestUpdate(currentVersionCode: Int): AppUpdateCheckResult = withContext(Dispatchers.IO) {
+    suspend fun fetchLatestUpdate(
+        currentVersionCode: Int,
+        currentGitCommit: String = config.buildGitCommit,
+        installedPackageName: String = "",
+    ): AppUpdateCheckResult = withContext(Dispatchers.IO) {
         try {
             val releases = fetchReleases()
-            val update = releases
-                .mapNotNull { it.toAppUpdateInfo() }
-                .filter { it.versionCode > currentVersionCode }
-                .maxByOrNull { it.versionCode }
+            val candidates = releases.mapNotNull { it.toAppUpdateInfo(installedPackageName) }
+            val update = candidates
+                .filter { isNewerThanInstalled(it, currentVersionCode, currentGitCommit) }
+                .maxWithOrNull(
+                    compareBy<AppUpdateInfo> { it.versionCode }
+                        .thenBy { it.buildCommit ?: "" },
+                )
                 ?: return@withContext AppUpdateCheckResult.UpToDate
             AppUpdateCheckResult.UpdateAvailable(update)
         } catch (e: Exception) {
@@ -43,8 +50,33 @@ internal class GithubReleaseFetcher(
         }
     }
 
+    private fun isNewerThanInstalled(
+        remote: AppUpdateInfo,
+        currentVersionCode: Int,
+        currentGitCommit: String,
+    ): Boolean {
+        if (remote.versionCode > currentVersionCode) return true
+        if (remote.versionCode < currentVersionCode) return false
+        val remoteCommit = remote.buildCommit ?: return false
+        return commitsDiffer(remoteCommit, currentGitCommit)
+    }
+
+    private fun commitsDiffer(remote: String, local: String): Boolean {
+        if (local.isBlank() || local.equals("local", ignoreCase = true)) return true
+        val remoteKey = remote.take(COMMIT_PREFIX_LENGTH)
+        val localKey = local.take(COMMIT_PREFIX_LENGTH)
+        return !remoteKey.equals(localKey, ignoreCase = true) &&
+            !remote.startsWith(local, ignoreCase = true) &&
+            !local.startsWith(remote, ignoreCase = true)
+    }
+
     private fun fetchReleases(): List<GithubReleaseDto> {
-        val url = URL("https://api.github.com/repos/${config.owner}/${config.repo}/releases?per_page=20")
+        val tag = config.releaseTag?.takeIf { it.isNotBlank() }
+        val url = if (tag != null) {
+            URL("https://api.github.com/repos/${config.owner}/${config.repo}/releases/tags/$tag")
+        } else {
+            URL("https://api.github.com/repos/${config.owner}/${config.repo}/releases?per_page=20")
+        }
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 15_000
@@ -63,7 +95,11 @@ internal class GithubReleaseFetcher(
             if (responseCode !in 200..299) {
                 error("GitHub API error ($responseCode): $body")
             }
-            json.decodeFromString<List<GithubReleaseDto>>(body)
+            if (tag != null) {
+                listOf(json.decodeFromString<GithubReleaseDto>(body))
+            } else {
+                json.decodeFromString<List<GithubReleaseDto>>(body)
+            }
         } finally {
             connection.disconnect()
         }
@@ -76,6 +112,7 @@ internal class GithubReleaseFetcher(
         return AppUpdateInfo(
             versionName = versionName,
             versionCode = versionCode,
+            buildCommit = extractCommitFromAssetName(apkAsset.name),
             releaseNotes = body.trim(),
             downloadUrl = apkAsset.browserDownloadUrl,
             assetName = apkAsset.name,
@@ -83,13 +120,36 @@ internal class GithubReleaseFetcher(
     }
 
     private fun selectApkAsset(assets: List<GithubAssetDto>): GithubAssetDto? {
-        val apkAssets = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
+        var apkAssets = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
         if (apkAssets.isEmpty()) return null
 
+        if (config.preferReleaseApk) {
+            val releaseApks = apkAssets.filter { it.name.contains(RELEASE_APK_MARKER, ignoreCase = true) }
+            if (releaseApks.isNotEmpty()) {
+                apkAssets = releaseApks
+            }
+        }
+
         val preferredAbi = preferredAbiSuffix()
-        return apkAssets.firstOrNull { it.name.contains(preferredAbi, ignoreCase = true) }
+        return apkAssets.firstOrNull {
+            it.name.contains(preferredAbi, ignoreCase = true) && !it.name.contains(DEBUG_APK_MARKER, ignoreCase = true)
+        }
+            ?: apkAssets.firstOrNull { it.name.contains(preferredAbi, ignoreCase = true) }
             ?: apkAssets.firstOrNull { it.name.contains("universal", ignoreCase = true) }
             ?: apkAssets.firstOrNull()
+    }
+
+    private fun apkVariantMarkerForInstalledPackage(installedPackageName: String): String {
+        return when {
+            installedPackageName.endsWith(".debug") -> DEBUG_APK_MARKER
+            installedPackageName.endsWith(".release") -> RELEASE_APK_MARKER
+            config.preferReleaseApk -> RELEASE_APK_MARKER
+            else -> DEBUG_APK_MARKER
+        }
+    }
+
+    private fun extractCommitFromAssetName(assetName: String): String? {
+        return ASSET_COMMIT_REGEX.find(assetName)?.groupValues?.getOrNull(1)
     }
 
     private fun preferredAbiSuffix(): String {
@@ -118,7 +178,12 @@ internal class GithubReleaseFetcher(
     }
 
     companion object {
+        private const val COMMIT_PREFIX_LENGTH = 12
+        private const val RELEASE_APK_MARKER = "-release-"
+        private const val DEBUG_APK_MARKER = "-debug-"
         private val VERSION_CODE_REGEX = Regex("\\((\\d+)\\)")
         private val VERSION_NAME_REGEX = Regex("`([^`]+)`")
+        /** Matches commit in `nextplayer-v0.16.3-<commit>-release-...apk` */
+        private val ASSET_COMMIT_REGEX = Regex("""-v[\d.]+-([0-9a-f]{7,40})-(?:debug|release)-""", RegexOption.IGNORE_CASE)
     }
 }

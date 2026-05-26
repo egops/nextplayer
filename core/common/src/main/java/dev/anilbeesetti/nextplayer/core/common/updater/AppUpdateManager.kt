@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 @Singleton
 class AppUpdateManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    config: GithubUpdateConfig,
+    private val config: GithubUpdateConfig,
     @ApplicationScope private val applicationScope: CoroutineScope,
 ) {
     private val fetcher = GithubReleaseFetcher(config)
@@ -50,7 +50,11 @@ class AppUpdateManager @Inject constructor(
 
     suspend fun checkForUpdateNow(): AppUpdateCheckResult {
         val currentVersionCode = currentVersionCode()
-        return fetcher.fetchLatestUpdate(currentVersionCode).also { _checkState.value = it }
+        return fetcher.fetchLatestUpdate(
+            currentVersionCode = currentVersionCode,
+            currentGitCommit = config.buildGitCommit,
+            installedPackageName = context.packageName,
+        ).also { _checkState.value = it }
     }
 
     fun downloadAndInstall(update: AppUpdateInfo) {

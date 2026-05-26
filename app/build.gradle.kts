@@ -20,6 +20,8 @@ android {
         versionName = "0.16.3"
         buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"egops\"")
         buildConfigField("String", "UPDATE_GITHUB_REPO", "\"nextplayer\"")
+        buildConfigField("String", "UPDATE_RELEASE_TAG", "\"build-filmstrip-seekbar-pr\"")
+        buildConfigField("String", "GIT_COMMIT", "\"${gitHeadCommit()}\"")
     }
 
     buildFeatures {
@@ -144,3 +146,10 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.testManifest)
 }
+
+/** Embedded in APK for in-app update commit comparison. */
+fun gitHeadCommit(): String = runCatching {
+    providers.exec {
+        commandLine("git", "rev-parse", "HEAD")
+    }.standardOutput.asText.get().trim()
+}.getOrElse { "local" }
