@@ -16,8 +16,8 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         applicationId = "dev.anilbeesetti.nextplayer.fork"
-        versionCode = 56
-        versionName = "0.16.3"
+        versionCode = 57
+        versionName = "2.0.0"
         buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"egops\"")
         buildConfigField("String", "UPDATE_GITHUB_REPO", "\"nextplayer\"")
         buildConfigField("String", "UPDATE_RELEASE_TAG", "\"build-filmstrip-seekbar-pr\"")
