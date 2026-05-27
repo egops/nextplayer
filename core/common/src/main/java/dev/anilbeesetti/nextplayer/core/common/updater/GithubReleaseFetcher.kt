@@ -22,6 +22,7 @@ private data class GithubReleaseDto(
 private data class GithubAssetDto(
     val name: String = "",
     @SerialName("browser_download_url") val browserDownloadUrl: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
 )
 
 internal class GithubReleaseFetcher(
@@ -107,8 +108,10 @@ internal class GithubReleaseFetcher(
 
     private fun GithubReleaseDto.toAppUpdateInfo(installedPackageName: String): AppUpdateInfo? {
         val apkAsset = selectApkAsset(assets, installedPackageName) ?: return null
-        val versionCode = parseVersionCode(body) ?: parseVersionCodeFromTag(tagName) ?: return null
-        val versionName = parseVersionName(body) ?: tagName.removePrefix("v").ifBlank { tagName }
+        val versionName = parseVersionNameFromAssetName(apkAsset.name)
+            ?: parseVersionName(body)
+            ?: tagName.removePrefix("v").ifBlank { tagName }
+        val versionCode = resolveVersionCode(versionName, body, tagName) ?: return null
         return AppUpdateInfo(
             versionName = versionName,
             versionCode = versionCode,
@@ -119,6 +122,10 @@ internal class GithubReleaseFetcher(
         )
     }
 
+    /**
+     * Picks the newest matching APK. A release may accumulate multiple builds under the same tag;
+     * version shown to the user must come from the selected asset, not only the release body.
+     */
     private fun selectApkAsset(assets: List<GithubAssetDto>, installedPackageName: String): GithubAssetDto? {
         var apkAssets = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
         if (apkAssets.isEmpty()) return null
@@ -130,12 +137,36 @@ internal class GithubReleaseFetcher(
         }
 
         val preferredAbi = preferredAbiSuffix()
-        return apkAssets.firstOrNull {
-            it.name.contains(preferredAbi, ignoreCase = true) && !it.name.contains(DEBUG_APK_MARKER, ignoreCase = true)
+        val abiCandidates = apkAssets.filter { it.name.contains(preferredAbi, ignoreCase = true) }
+            .ifEmpty { apkAssets.filter { it.name.contains("universal", ignoreCase = true) } }
+            .ifEmpty { apkAssets }
+
+        return abiCandidates.maxWithOrNull(assetComparator())
+    }
+
+    private fun assetComparator(): Comparator<GithubAssetDto> =
+        Comparator { a, b ->
+            val aVersion = parseVersionNameFromAssetName(a.name)
+            val bVersion = parseVersionNameFromAssetName(b.name)
+            when {
+                aVersion != null && bVersion != null -> {
+                    val versionCmp = compareVersionNames(aVersion, bVersion)
+                    if (versionCmp != 0) return@Comparator versionCmp
+                }
+                aVersion != null -> return@Comparator 1
+                bVersion != null -> return@Comparator -1
+            }
+            val updatedCmp = a.updatedAt.compareTo(b.updatedAt)
+            if (updatedCmp != 0) return@Comparator updatedCmp
+            extractCommitFromAssetName(a.name).orEmpty().compareTo(extractCommitFromAssetName(b.name).orEmpty())
         }
-            ?: apkAssets.firstOrNull { it.name.contains(preferredAbi, ignoreCase = true) }
-            ?: apkAssets.firstOrNull { it.name.contains("universal", ignoreCase = true) }
-            ?: apkAssets.firstOrNull()
+
+    private fun resolveVersionCode(versionName: String, body: String, tagName: String): Int? {
+        val bodyVersionName = parseVersionName(body)
+        if (bodyVersionName == versionName) {
+            parseVersionCode(body)?.let { return it }
+        }
+        return parseVersionCodeFromTag(tagName)
     }
 
     private fun apkVariantMarkerForInstalledPackage(installedPackageName: String): String {
@@ -176,13 +207,31 @@ internal class GithubReleaseFetcher(
         return tagName.filter { it.isDigit() }.toIntOrNull()?.takeIf { it > 0 }
     }
 
+    private fun parseVersionNameFromAssetName(assetName: String): String? {
+        return ASSET_VERSION_REGEX.find(assetName)?.groupValues?.getOrNull(1)
+    }
+
     companion object {
         private const val COMMIT_PREFIX_LENGTH = 12
         private const val RELEASE_APK_MARKER = "-release-"
         private const val DEBUG_APK_MARKER = "-debug-"
         private val VERSION_CODE_REGEX = Regex("\\((\\d+)\\)")
         private val VERSION_NAME_REGEX = Regex("`([^`]+)`")
+        /** Matches `nextplayer-v0.20.0-<commit>-release-...apk` */
+        private val ASSET_VERSION_REGEX = Regex("""nextplayer-v([\d.]+)-""", RegexOption.IGNORE_CASE)
         /** Matches commit in `nextplayer-v0.16.3-<commit>-release-...apk` */
         private val ASSET_COMMIT_REGEX = Regex("""-v[\d.]+-([0-9a-f]{7,40})-(?:debug|release)-""", RegexOption.IGNORE_CASE)
+
+        /** Compares dotted numeric version segments (e.g. 0.20.0 vs 0.16.3). */
+        internal fun compareVersionNames(a: String, b: String): Int {
+            val aParts = a.split('.').map { it.toIntOrNull() ?: 0 }
+            val bParts = b.split('.').map { it.toIntOrNull() ?: 0 }
+            val length = maxOf(aParts.size, bParts.size)
+            for (i in 0 until length) {
+                val diff = aParts.getOrElse(i) { 0 }.compareTo(bParts.getOrElse(i) { 0 })
+                if (diff != 0) return diff
+            }
+            return 0
+        }
     }
 }
