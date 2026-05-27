@@ -90,6 +90,21 @@ jobs:
 
           ls -lh release-assets/
 
+      - name: Remove stale APK assets from existing pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.release_meta.outputs.release_tag }}"
+          release_id=$(gh release view "$tag" --repo "${{ github.repository }}" --json id -q .id 2>/dev/null || true)
+          if [ -n "$release_id" ]; then
+            gh api "/repos/${{ github.repository }}/releases/${release_id}/assets" \
+              --jq '.[] | select(.name | endswith(".apk")) | .id' \
+              | while read -r asset_id; do
+                  echo "Deleting stale asset id=${asset_id}"
+                  gh api -X DELETE "/repos/${{ github.repository }}/releases/assets/${asset_id}"
+                done
+          fi
+
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v2
         env:
